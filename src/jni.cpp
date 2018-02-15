@@ -29,31 +29,47 @@ JNICALL  Java_com_distnet_gstark31897_distnet_NodeService_nodeRun(JNIEnv *env, j
 }
 
 extern "C"
-JNIEXPORT jstring
-JNICALL  Java_com_distnet_gstark31897_distnet_NodeService_nodeAddInterface(JNIEnv *env, jobject obj) {
-    std::string hello = "Hello from C++";
-    return env->NewStringUTF(hello.c_str());
+JNIEXPORT void
+JNICALL  Java_com_distnet_gstark31897_distnet_NodeService_nodeAddInterface(JNIEnv *env, jobject obj, jint node_id, jstring uri) {
+    const char *str = env->GetStringUTFChars(uri, 0);
+    std::string str_uri(str);
+    env->ReleaseStringUTFChars(uri, str);
+
+    node_add_interface(&nodes[node_id], str_uri);
+}
+
+extern "C"
+JNIEXPORT void
+JNICALL  Java_com_distnet_gstark31897_distnet_NodeService_nodeAddPeer(JNIEnv *env, jobject obj, jint node_id, jstring uri) {
+    const char *str = env->GetStringUTFChars(uri, 0);
+    std::string str_uri(str);
+    env->ReleaseStringUTFChars(uri, str);
+
+    node_add_peer(&nodes[node_id], str_uri);
 }
 
 extern "C"
 JNIEXPORT jstring
-JNICALL  Java_com_distnet_gstark31897_distnet_NodeService_nodeAddPeer(JNIEnv *env, jobject obj) {
-    std::string hello = "Hello from C++";
-    return env->NewStringUTF(hello.c_str());
+JNICALL  Java_com_distnet_gstark31897_distnet_NodeService_nodeDiscover(JNIEnv *env, jobject obj, jint node_id, jstring identity) {
+    const char *str = env->GetStringUTFChars(identity, 0);
+    std::string str_identity(str);
+    env->ReleaseStringUTFChars(identity, str);
+
+    node_discover(&nodes[node_id], str_identity);
 }
 
 extern "C"
 JNIEXPORT jstring
-JNICALL  Java_com_distnet_gstark31897_distnet_NodeService_nodeDiscover(JNIEnv *env, jobject obj) {
-    std::string hello = "Hello from C++";
-    return env->NewStringUTF(hello.c_str());
-}
+JNICALL  Java_com_distnet_gstark31897_distnet_NodeService_nodeSendMsg(JNIEnv *env, jobject obj, jint node_id, jstring identity, jstring message) {
+    const char *str = env->GetStringUTFChars(identity, 0);
+    std::string str_identity(str);
+    env->ReleaseStringUTFChars(identity, str);
 
-extern "C"
-JNIEXPORT jstring
-JNICALL  Java_com_distnet_gstark31897_distnet_NodeService_nodeSendMsg(JNIEnv *env, jobject obj) {
-    std::string hello = "Hello from C++";
-    return env->NewStringUTF(hello.c_str());
+    const char *str2 = env->GetStringUTFChars(message, 0);
+    std::string str_message(str2);
+    env->ReleaseStringUTFChars(message, str2);
+
+    node_send_msg(&nodes[node_id], str_identity, str_message);
 }
 
 extern "C"
