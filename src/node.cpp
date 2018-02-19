@@ -266,7 +266,7 @@ bool node_handle_send_msg(node_t *node, request_t request)
     cout << "can I send to self?" << endl;
     if (request.args.at(0) == node->identity)
     {
-        node->recv_cb(build_request_msg(&request));
+        node->recv_cb(request.args.at(1), request.args.at(2));
         return true;
     }
 
@@ -345,7 +345,7 @@ bool node_handle_stop(node_t *node, request_t request)
     return true;
 }
 
-void node_start(node_t *node, string identity, void (*recv_cb)(message_t))
+void node_start(node_t *node, string identity, void (*recv_cb)(string, string))
 {
     socket_t control_receiver;
     sock_pair(&control_receiver, &(node->control_sock));

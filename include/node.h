@@ -24,7 +24,7 @@ struct node_t
     std::vector<socket_t> interfaces;
     std::vector<message_t> messages;
     bool running = false;
-    void (*recv_cb)(message_t) = NULL;
+    void (*recv_cb)(std::string, std::string) = NULL;
     unsigned int current_nonce = 0;
     std::string identity;
     std::map<std::string, std::string> routes;
@@ -38,7 +38,7 @@ struct node_t
 bool parse_request(message_t message, request_t *output);
 message_t build_request_msg(request_t *request);
 
-void node_start(node_t *node, std::string identity, void (*)(message_t));
+void node_start(node_t *node, std::string identity, void (*)(std::string, std::string));
 
 void node_run(node_t *node);
 

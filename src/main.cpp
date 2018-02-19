@@ -5,14 +5,13 @@
 #include <chrono>
 
 
-void message_callback(message_t message)
+void message_callback(std::string sender, std::string message)
 {
-    std::cout << "got message: " << message.message << " from: " << message.address.protocol << "://" << message.address.host << ":" << message.address.port << std::endl;
+    std::cout << "got message from " << sender << ": " << message << std::endl;
 }
 
 int main(int argc, char **argv)
 {
-    void (*message_cb)(message_t) = &message_callback;
     if (argc < 5)
     {
         std::cerr << "need an identity, 2 addresses and a receiver identity" << std::endl;
