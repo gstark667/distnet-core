@@ -23,7 +23,7 @@ set(SOURCES
 
 #TODO make it a library
 #add_library(distnet_core SHARED ${SOURCES} ${HEADERS})
-add_executable(distnet_core ${SOURCES} ${HEADERS})
-target_link_libraries (distnet_core ${CMAKE_THREAD_LIBS_INIT})
-target_include_directories(distnet_core PUBLIC include/)
+add_executable(distnet-core ${SOURCES} ${HEADERS})
+target_link_libraries (distnet-core ${CMAKE_THREAD_LIBS_INIT})
+target_include_directories (distnet-core PUBLIC include/)
 
