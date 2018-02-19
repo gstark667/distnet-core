@@ -1,0 +1,9 @@
+*.swp
+CMakeCache.txt
+CMakeFiles
+Makefile
+cmake_install.cmake
+distnet-core
+*.so
+*.dll
+*.exe
