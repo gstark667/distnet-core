@@ -66,6 +66,27 @@ message_t build_request_msg(request_t *request)
     return message;
 }
 
+bool node_handle_set_identity(node_t *node, request_t request)
+{
+    if (request.args.size() != 1 || request.sender.host != "")
+        return false;
+
+    node->identity = request.args.at(0);
+    for (map<string, string>::iterator it = node->peers.begin(); it != node->peers.end(); ++it)
+    {
+        request_t new_request;
+        new_request.command = "register";
+        new_request.nonce = node->current_nonce++;
+        if (parse_uri(it->second) == request.sender)
+            continue;
+        new_request.sender = parse_uri(it->second);
+        node_send_request(node, new_request);
+        node->waiting_requests[new_request.sender][new_request.nonce] = new_request;
+    }
+
+    return true;
+}
+
 bool node_handle_add_interface(node_t *node, request_t request)
 {
     if (request.args.size() != 1 || request.sender.host != "")
@@ -105,6 +126,11 @@ bool node_handle_add_peer(node_t *node, request_t request)
         if (!sock_connect(&new_sock, request.args.at(0)))
         {
             return false;
+        }
+
+        if (node->interface_cb)
+        {
+            node->interface_cb(make_uri(new_sock.address));
         }
         node->interfaces.push_back(new_sock);
         sock = &(node->interfaces.back());
@@ -266,7 +292,10 @@ bool node_handle_send_msg(node_t *node, request_t request)
     cout << "can I send to self?" << endl;
     if (request.args.at(0) == node->identity)
     {
-        node->recv_cb(request.args.at(1), request.args.at(2));
+        if (node->recv_cb)
+        {
+            node->recv_cb(request.args.at(1), request.args.at(2));
+        }
         return true;
     }
 
@@ -345,13 +374,15 @@ bool node_handle_stop(node_t *node, request_t request)
     return true;
 }
 
-void node_start(node_t *node, string identity, void (*recv_cb)(string, string))
+void node_start(node_t *node, string identity, void (*recv_cb)(string, string), void (*interface_cb)(string))
 {
     socket_t control_receiver;
     sock_pair(&control_receiver, &(node->control_sock));
     node->interfaces.push_back(control_receiver);
     node->recv_cb = recv_cb;
+    node->interface_cb = interface_cb;
     node->identity = identity;
+    node->handlers["set_identity"] = &node_handle_set_identity;
     node->handlers["add_interface"] = &node_handle_add_interface;
     node->handlers["add_peer"] = &node_handle_add_peer;
     node->handlers["discover"] = &node_handle_discover;
@@ -411,6 +442,15 @@ bool node_send_request(node_t *node, request_t request)
 void node_send(node_t *node, message_t message)
 {
     sock_send_msg(&node->control_sock, message);
+}
+
+void node_set_identity(node_t *node, string identity)
+{
+    request_t request;
+    request.nonce = node->current_nonce++;
+    request.command = "set_identity";
+    request.args.push_back(identity);
+    node_send(node, build_request_msg(&request));
 }
 
 void node_add_interface(node_t *node, string uri)

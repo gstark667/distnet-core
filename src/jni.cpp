@@ -14,7 +14,13 @@ void message_callback(std::string sender, std::string message)
     jclass cls = genv->GetObjectClass(gobj);
     jmethodID mid = genv->GetMethodID(cls, "messageCallback", "(Ljava/lang/String;Ljava/lang/String;)V");
     genv->CallVoidMethod(gobj, mid, genv->NewStringUTF(sender.c_str()), genv->NewStringUTF(message.c_str()));
+}
 
+void interface_callback(std::string uri)
+{
+    jclass cls = genv->GetObjectClass(gobj);
+    jmethodID mid = genv->GetMethodID(cls, "interfaceCallback", "(Ljava/lang/String;)V");
+    genv->CallVoidMethod(gobj, mid, genv->NewStringUTF(uri.c_str()));
 }
 
 extern "C"
@@ -24,7 +30,7 @@ JNICALL  Java_com_distnet_gstark31897_distnet_NodeService_nodeStart(JNIEnv *env,
     std::string str_identity(str);
     env->ReleaseStringUTFChars(identity, str);
 
-    node_start(&nodes[node_id], str_identity, &message_callback);
+    node_start(&nodes[node_id], str_identity, &message_callback, &interface_callback);
 }
 
 extern "C"
@@ -33,6 +39,16 @@ JNICALL  Java_com_distnet_gstark31897_distnet_NodeService_nodeRun(JNIEnv *env, j
     genv = env;
     gobj = obj;
     node_run(&nodes[node_id]);
+}
+
+extern "C"
+JNIEXPORT void
+JNICALL  Java_com_distnet_gstark31897_distnet_NodeService_nodeSetIdentity(JNIEnv *env, jobject obj, jint node_id, jstring identity) {
+    const char *str = env->GetStringUTFChars(identity, 0);
+    std::string str_identity(str);
+    env->ReleaseStringUTFChars(identity, str);
+
+    node_set_identity(&nodes[node_id], str_identity);
 }
 
 extern "C"

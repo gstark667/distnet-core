@@ -19,7 +19,7 @@ int main(int argc, char **argv)
     }
 
     node_t node;
-    node_start(&node, argv[1], &message_callback);
+    node_start(&node, argv[1], &message_callback, NULL);
 
     std::thread node_thread(node_run, &node);
 
