@@ -25,7 +25,7 @@ struct node_t
     std::vector<message_t> messages;
     bool running = false;
     void (*recv_cb)(std::string, std::string) = NULL;
-    void (*interface_cb)(std::string uri) = NULL;
+    void (*interface_cb)(std::string uri, bool add) = NULL;
     unsigned int current_nonce = 0;
     std::string identity;
     std::map<std::string, std::string> routes;
@@ -39,7 +39,7 @@ struct node_t
 bool parse_request(message_t message, request_t *output);
 message_t build_request_msg(request_t *request);
 
-void node_start(node_t *node, std::string identity, void (*)(std::string, std::string), void (*)(std::string));
+void node_start(node_t *node, std::string identity, void (*message_cb)(std::string, std::string), void (*interface_cb)(std::string, bool));
 
 void node_run(node_t *node);
 
@@ -47,6 +47,7 @@ bool node_send_request(node_t *node, request_t request);
 
 void node_set_identity(node_t *node, std::string identity);
 void node_add_interface(node_t *node, std::string uri);
+void node_remove_interface(node_t *node, std::string uri);
 void node_add_peer(node_t *node, std::string uri);
 void node_discover(node_t *node, std::string identity);
 void node_send_msg(node_t *node, std::string identity, std::string message);

@@ -102,6 +102,37 @@ bool node_handle_add_interface(node_t *node, request_t request)
     return true;
 }
 
+bool node_handle_remove_interface(node_t *node, request_t request)
+{
+    if (request.args.size() != 1 || request.sender.host != "")
+        return false;
+
+    vector<socket_t> to_remove;
+    for (vector<socket_t>::iterator it = node->interfaces.begin(); it != node->interfaces.end(); ++it)
+    {
+        if (sock_close(&(*it), request.args.at(0)))
+        {
+            to_remove.push_back(*it);
+        }
+    }
+
+    for (vector<socket_t>::iterator it = to_remove.begin(); it != to_remove.end(); ++it)
+    {
+        for (vector<socket_t>::iterator it2 = node->interfaces.begin(); it2 != node->interfaces.end(); ++it2)
+        {
+            if (it->address == it2->address)
+            {
+                node->interfaces.erase(it2);
+                break;
+            }
+        }
+    }
+
+    if (node->interface_cb)
+        node->interface_cb(request.args.at(0), false);
+    return true;
+}
+
 bool node_handle_add_peer(node_t *node, request_t request)
 {
     cout << "peering" << endl;
@@ -130,7 +161,7 @@ bool node_handle_add_peer(node_t *node, request_t request)
 
         if (node->interface_cb)
         {
-            node->interface_cb(make_uri(new_sock.address));
+            node->interface_cb(make_uri(new_sock.address), true);
         }
         node->interfaces.push_back(new_sock);
         sock = &(node->interfaces.back());
@@ -374,7 +405,7 @@ bool node_handle_stop(node_t *node, request_t request)
     return true;
 }
 
-void node_start(node_t *node, string identity, void (*recv_cb)(string, string), void (*interface_cb)(string))
+void node_start(node_t *node, string identity, void (*recv_cb)(string, string), void (*interface_cb)(string, bool))
 {
     socket_t control_receiver;
     sock_pair(&control_receiver, &(node->control_sock));
@@ -384,6 +415,7 @@ void node_start(node_t *node, string identity, void (*recv_cb)(string, string), 
     node->identity = identity;
     node->handlers["set_identity"] = &node_handle_set_identity;
     node->handlers["add_interface"] = &node_handle_add_interface;
+    node->handlers["remove_interface"] = &node_handle_remove_interface;
     node->handlers["add_peer"] = &node_handle_add_peer;
     node->handlers["discover"] = &node_handle_discover;
     node->handlers["send_msg"] = &node_handle_send_msg;
@@ -458,6 +490,15 @@ void node_add_interface(node_t *node, string uri)
     request_t request;
     request.nonce = node->current_nonce++;
     request.command = "add_interface";
+    request.args.push_back(uri);
+    node_send(node, build_request_msg(&request));
+}
+
+void node_remove_interface(node_t *node, string uri)
+{
+    request_t request;
+    request.nonce = node->current_nonce++;
+    request.command = "remove_interface";
     request.args.push_back(uri);
     node_send(node, build_request_msg(&request));
 }

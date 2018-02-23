@@ -16,11 +16,11 @@ void message_callback(std::string sender, std::string message)
     genv->CallVoidMethod(gobj, mid, genv->NewStringUTF(sender.c_str()), genv->NewStringUTF(message.c_str()));
 }
 
-void interface_callback(std::string uri)
+void interface_callback(std::string uri, bool add)
 {
     jclass cls = genv->GetObjectClass(gobj);
-    jmethodID mid = genv->GetMethodID(cls, "interfaceCallback", "(Ljava/lang/String;)V");
-    genv->CallVoidMethod(gobj, mid, genv->NewStringUTF(uri.c_str()));
+    jmethodID mid = genv->GetMethodID(cls, "interfaceCallback", "(Ljava/lang/String;Z)V");
+    genv->CallVoidMethod(gobj, mid, genv->NewStringUTF(uri.c_str()), add);
 }
 
 extern "C"
@@ -59,6 +59,16 @@ JNICALL  Java_com_distnet_gstark31897_distnet_NodeService_nodeAddInterface(JNIEn
     env->ReleaseStringUTFChars(uri, str);
 
     node_add_interface(&nodes[node_id], str_uri);
+}
+
+extern "C"
+JNIEXPORT void
+JNICALL  Java_com_distnet_gstark31897_distnet_NodeService_nodeRemoveInterface(JNIEnv *env, jobject obj, jint node_id, jstring uri) {
+    const char *str = env->GetStringUTFChars(uri, 0);
+    std::string str_uri(str);
+    env->ReleaseStringUTFChars(uri, str);
+
+    node_remove_interface(&nodes[node_id], str_uri);
 }
 
 extern "C"
