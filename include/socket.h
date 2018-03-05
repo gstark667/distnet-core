@@ -43,7 +43,7 @@ message_t sock_recv_msg(socket_t *sock);
 
 std::vector<socket_t*> sock_select(std::vector<socket_t*> socks);
 
-bool sock_close(socket_t *sock);
+bool sock_close(socket_t *sock, std::string uri);
 
 bool operator==(const address_t &a, const address_t &b);
 bool operator!=(const address_t &a, const address_t &b);

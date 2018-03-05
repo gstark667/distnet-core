@@ -378,11 +378,23 @@ std::vector<socket_t*> sock_select(std::vector<socket_t*> socks)
     return return_socks;
 }
 
-bool sock_close(socket_t * sock)
+bool sock_close(socket_t * sock, std::string uri)
 {
-    if (close(sock->fd) != 0)
-        return false;
-    return true;
+    address_t address = parse_uri(uri);
+    bool close_all = address == sock->address;
+    for (std::vector<socket_t>::iterator it = sock->clients.begin(); it != sock->clients.end(); ++it)
+    {
+        if (close_all || address == it->address)
+        {
+            close(it->fd);
+        }
+    }
+    if (close_all)
+    {
+        close(sock->fd);
+        return true;
+    }
+    return false;
 }
 
 bool operator==(const address_t &a, const address_t &b)

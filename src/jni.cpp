@@ -6,10 +6,21 @@
 
 
 std::map<int, node_t> nodes;
+JNIEnv *genv = NULL;
+jobject gobj;
 
-void message_callback(message_t message)
+void message_callback(std::string sender, std::string message)
 {
-    std::cout << "got message: " << message.message << " from: " << message.address.protocol << "://" << message.address.host << ":" << message.address.port << std::endl;
+    jclass cls = genv->GetObjectClass(gobj);
+    jmethodID mid = genv->GetMethodID(cls, "messageCallback", "(Ljava/lang/String;Ljava/lang/String;)V");
+    genv->CallVoidMethod(gobj, mid, genv->NewStringUTF(sender.c_str()), genv->NewStringUTF(message.c_str()));
+}
+
+void interface_callback(std::string uri, bool add)
+{
+    jclass cls = genv->GetObjectClass(gobj);
+    jmethodID mid = genv->GetMethodID(cls, "interfaceCallback", "(Ljava/lang/String;Z)V");
+    genv->CallVoidMethod(gobj, mid, genv->NewStringUTF(uri.c_str()), add);
 }
 
 extern "C"
@@ -19,13 +30,25 @@ JNICALL  Java_com_distnet_gstark31897_distnet_NodeService_nodeStart(JNIEnv *env,
     std::string str_identity(str);
     env->ReleaseStringUTFChars(identity, str);
 
-    node_start(&nodes[node_id], str_identity, &message_callback);
+    node_start(&nodes[node_id], str_identity, &message_callback, &interface_callback);
 }
 
 extern "C"
 JNIEXPORT void
 JNICALL  Java_com_distnet_gstark31897_distnet_NodeService_nodeRun(JNIEnv *env, jobject obj, jint node_id) {
+    genv = env;
+    gobj = obj;
     node_run(&nodes[node_id]);
+}
+
+extern "C"
+JNIEXPORT void
+JNICALL  Java_com_distnet_gstark31897_distnet_NodeService_nodeSetIdentity(JNIEnv *env, jobject obj, jint node_id, jstring identity) {
+    const char *str = env->GetStringUTFChars(identity, 0);
+    std::string str_identity(str);
+    env->ReleaseStringUTFChars(identity, str);
+
+    node_set_identity(&nodes[node_id], str_identity);
 }
 
 extern "C"
@@ -40,6 +63,16 @@ JNICALL  Java_com_distnet_gstark31897_distnet_NodeService_nodeAddInterface(JNIEn
 
 extern "C"
 JNIEXPORT void
+JNICALL  Java_com_distnet_gstark31897_distnet_NodeService_nodeRemoveInterface(JNIEnv *env, jobject obj, jint node_id, jstring uri) {
+    const char *str = env->GetStringUTFChars(uri, 0);
+    std::string str_uri(str);
+    env->ReleaseStringUTFChars(uri, str);
+
+    node_remove_interface(&nodes[node_id], str_uri);
+}
+
+extern "C"
+JNIEXPORT void
 JNICALL  Java_com_distnet_gstark31897_distnet_NodeService_nodeAddPeer(JNIEnv *env, jobject obj, jint node_id, jstring uri) {
     const char *str = env->GetStringUTFChars(uri, 0);
     std::string str_uri(str);
@@ -49,7 +82,7 @@ JNICALL  Java_com_distnet_gstark31897_distnet_NodeService_nodeAddPeer(JNIEnv *en
 }
 
 extern "C"
-JNIEXPORT jstring
+JNIEXPORT void
 JNICALL  Java_com_distnet_gstark31897_distnet_NodeService_nodeDiscover(JNIEnv *env, jobject obj, jint node_id, jstring identity) {
     const char *str = env->GetStringUTFChars(identity, 0);
     std::string str_identity(str);
@@ -59,8 +92,9 @@ JNICALL  Java_com_distnet_gstark31897_distnet_NodeService_nodeDiscover(JNIEnv *e
 }
 
 extern "C"
-JNIEXPORT jstring
+JNIEXPORT void
 JNICALL  Java_com_distnet_gstark31897_distnet_NodeService_nodeSendMsg(JNIEnv *env, jobject obj, jint node_id, jstring identity, jstring message) {
+    std::cout << "sending message from native" << std::endl;
     const char *str = env->GetStringUTFChars(identity, 0);
     std::string str_identity(str);
     env->ReleaseStringUTFChars(identity, str);
