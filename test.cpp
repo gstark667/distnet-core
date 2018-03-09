@@ -1,17 +1,11 @@
-// https://download.libsodium.org/doc/public-key_cryptography/authenticated_encryption.html
-
 #include <sodium.h>
 #include <iostream>
 #include <string.h>
 
-#define MESSAGE (const unsigned char *) "test"
-#define MESSAGE_LEN 4
-#define CIPHERTEXT_LEN (crypto_box_MACBYTES + MESSAGE_LEN)
-
 struct keypair_t
 {
-    uint8_t *public_key;
-    uint8_t *secret_key;
+    std::string public_key;
+    std::string secret_key;
 };
 
 struct ciphertext_t
@@ -90,8 +84,8 @@ uint8_t *from_hex(std::string hex)
 
 void keypair_load(keypair_t *keypair, std::string public_key, std::string secret_key)
 {
-    keypair->public_key = from_hex(public_key);
-    keypair->secret_key = from_hex(secret_key);
+    keypair->public_key = public_key;
+    keypair->secret_key = secret_key;
 }
 
 void keypair_create(keypair_t *keypair)
@@ -100,11 +94,8 @@ void keypair_create(keypair_t *keypair)
     unsigned char secret_key[crypto_box_SECRETKEYBYTES];
     crypto_box_keypair(public_key, secret_key);
 
-    keypair->public_key = (uint8_t*)malloc(sizeof(uint8_t) * crypto_box_PUBLICKEYBYTES);
-    memcpy(keypair->public_key, public_key, sizeof(uint8_t) * crypto_box_PUBLICKEYBYTES);
-
-    keypair->secret_key = (uint8_t*)malloc(sizeof(uint8_t) * crypto_box_SECRETKEYBYTES);
-    memcpy(keypair->secret_key, secret_key, sizeof(uint8_t) * crypto_box_SECRETKEYBYTES);
+    keypair->public_key = to_hex(public_key, crypto_box_PUBLICKEYBYTES);
+    keypair->secret_key = to_hex(secret_key, crypto_box_SECRETKEYBYTES);
 }
 
 std::string make_nonce()
@@ -120,7 +111,9 @@ ciphertext_t keypair_encrypt(keypair_t *from, keypair_t *to, std::string message
     output.nonce = make_nonce();
     uint8_t *nonce_buf = from_hex(output.nonce);
     uint8_t *ciphertext = (uint8_t*)malloc(sizeof(uint8_t) * (crypto_box_MACBYTES + message.size()));
-    if (crypto_box_easy(ciphertext, (unsigned char*)message.c_str(), message.size(), nonce_buf, to->public_key, from->secret_key) != 0)
+    uint8_t *public_key = from_hex(to->public_key);
+    uint8_t *secret_key = from_hex(from->secret_key);
+    if (crypto_box_easy(ciphertext, (unsigned char*)message.c_str(), message.size(), nonce_buf, public_key, secret_key) != 0)
     {
         free(nonce_buf);
         free(ciphertext);
@@ -129,53 +122,50 @@ ciphertext_t keypair_encrypt(keypair_t *from, keypair_t *to, std::string message
     output.body = to_hex(ciphertext, crypto_box_MACBYTES + message.size());
     free(nonce_buf);
     free(ciphertext);
+    free(public_key);
+    free(secret_key);
     return output;
 }
 
-std::string keypair_decrypt(keypair_t *from, keypair_t *to, ciphertext_t ciphertext)
+plaintext_t keypair_decrypt(keypair_t *from, keypair_t *to, ciphertext_t ciphertext)
 {
-
-}
-
-void keypair_free(keypair_t *keypair)
-{
-    free(keypair->public_key);
-    free(keypair->secret_key);
+    plaintext_t output;
+    uint8_t *ciphertext_buf = from_hex(ciphertext.body);
+    uint8_t *nonce_buf = from_hex(ciphertext.nonce);
+    uint8_t *plaintext = (uint8_t*)malloc(sizeof(uint8_t) * (ciphertext.body.size()/2 - crypto_box_MACBYTES + 1));
+    memset((void*)plaintext, 0, (ciphertext.body.size()/2 - crypto_box_MACBYTES + 1));
+    uint8_t *public_key = from_hex(from->public_key);
+    uint8_t *secret_key = from_hex(to->secret_key);
+    if (crypto_box_open_easy(plaintext, (unsigned char*)ciphertext_buf, ciphertext.body.size() / 2, nonce_buf, public_key, secret_key) != 0)
+    {
+        free(nonce_buf);
+        free(plaintext);
+        return output;
+    }
+    output.body = std::string((char*)plaintext);
+    output.nonce = ciphertext.nonce;
+    free(nonce_buf);
+    free(plaintext);
+    free(public_key);
+    free(secret_key);
+    return output;
 }
 
 int main()
 {
-    unsigned char *alice_publickey = from_hex("4F67878F1675C2A98A437D7B0825B690522118AFFEC2A3E5A43722D8A40AA840");
-    unsigned char *alice_secretkey = from_hex("794DBFB73F67D532CCF6D89366B32AF3B48EDB72FFB315B60C3B92EDF97E5D18");
+    keypair_t alice, bob;
+    keypair_create(&alice);
+    keypair_create(&bob);
 
-    std::cout << to_hex(alice_publickey, crypto_box_PUBLICKEYBYTES) << std::endl;
-    std::cout << to_hex(alice_secretkey, crypto_box_SECRETKEYBYTES) << std::endl;
+    std::cout << alice.public_key << std::endl;
+    std::cout << alice.secret_key << std::endl;
 
-    unsigned char bob_publickey[crypto_box_PUBLICKEYBYTES];
-    unsigned char bob_secretkey[crypto_box_SECRETKEYBYTES];
-    crypto_box_keypair(bob_publickey, bob_secretkey);
+    std::cout << bob.public_key << std::endl;
+    std::cout << bob.secret_key << std::endl;
 
-    std::cout << to_hex(bob_publickey, crypto_box_PUBLICKEYBYTES) << std::endl;
-    std::cout << to_hex(bob_secretkey, crypto_box_SECRETKEYBYTES) << std::endl;
+    ciphertext_t encrypted = keypair_encrypt(&alice, &bob, "Hello world!");
+    std::cout << encrypted.body << std::endl;
 
-    unsigned char nonce[crypto_box_NONCEBYTES];
-    unsigned char ciphertext[CIPHERTEXT_LEN];
-    randombytes_buf(nonce, sizeof nonce);
-    if (crypto_box_easy(ciphertext, MESSAGE, MESSAGE_LEN, nonce, bob_publickey, alice_secretkey) != 0) {
-        /* error */
-        std::cout << "couldn't encrypt" << std::endl;
-    }
-
-    std::cout << to_hex(ciphertext, CIPHERTEXT_LEN) << std::endl;
-
-    unsigned char decrypted[CIPHERTEXT_LEN] = "";
-    uint8_t *data = from_hex(to_hex(ciphertext, CIPHERTEXT_LEN));
-    //if (crypto_box_open_easy(decrypted, ciphertext, CIPHERTEXT_LEN, nonce, alice_publickey, bob_secretkey) != 0) {
-    if (crypto_box_open_easy(decrypted, ciphertext, CIPHERTEXT_LEN, nonce, alice_publickey, bob_secretkey) != 0) {
-        /* message for Bob pretending to be from Alice has been forged! */
-        std::cout << "alice is a fake!" << std::endl;
-    }
-    free(data);
-    std::cout << (char*)decrypted << std::endl;
+    plaintext_t decrypted = keypair_decrypt(&alice, &bob, encrypted);
+    std::cout << decrypted.body << std::endl;
 }
-
