@@ -117,6 +117,8 @@ ciphertext_t keypair_encrypt(keypair_t *from, keypair_t *to, std::string message
     {
         free(nonce_buf);
         free(ciphertext);
+        free(public_key);
+        free(secret_key);
         return output;
     }
     output.body = to_hex(ciphertext, crypto_box_MACBYTES + message.size());
@@ -140,6 +142,8 @@ plaintext_t keypair_decrypt(keypair_t *from, keypair_t *to, ciphertext_t ciphert
     {
         free(nonce_buf);
         free(plaintext);
+        free(public_key);
+        free(secret_key);
         return output;
     }
     output.body = std::string((char*)plaintext);
