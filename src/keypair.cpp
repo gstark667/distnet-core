@@ -1,24 +1,6 @@
-#include <sodium.h>
-#include <iostream>
+#include "keypair.h"
 #include <string.h>
 
-struct keypair_t
-{
-    std::string public_key;
-    std::string secret_key;
-};
-
-struct ciphertext_t
-{
-    std::string body;
-    std::string nonce;
-};
-
-struct plaintext_t
-{
-    std::string body;
-    std::string nonce;
-};
 
 char hex_conv[16] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
 
@@ -155,7 +137,7 @@ plaintext_t keypair_decrypt(keypair_t *from, keypair_t *to, ciphertext_t ciphert
     return output;
 }
 
-int main()
+/*int main()
 {
     keypair_t alice, bob;
     keypair_create(&alice);
@@ -172,4 +154,5 @@ int main()
 
     plaintext_t decrypted = keypair_decrypt(&alice, &bob, encrypted);
     std::cout << decrypted.body << std::endl;
-}
+}*/
+
