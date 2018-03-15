@@ -71,7 +71,7 @@ bool node_handle_set_identity(node_t *node, request_t request)
     if (request.args.size() != 1 || request.sender.host != "")
         return false;
 
-    node->identity = request.args.at(0);
+    keypair_load(&(node->identity), request.args.at(0), request.args.at(1));
     for (map<string, string>::iterator it = node->peers.begin(); it != node->peers.end(); ++it)
     {
         request_t new_request;
@@ -80,6 +80,7 @@ bool node_handle_set_identity(node_t *node, request_t request)
         if (parse_uri(it->second) == request.sender)
             continue;
         new_request.sender = parse_uri(it->second);
+        new_request.args.push_back(request.args.at(0));
         node_send_request(node, new_request);
         node->waiting_requests[new_request.sender][new_request.nonce] = new_request;
     }
@@ -172,7 +173,7 @@ bool node_handle_add_peer(node_t *node, request_t request)
     new_request.sender = parse_uri(request.args.at(0));
     new_request.nonce = node->current_nonce++;
     new_request.command = "register";
-    new_request.args.push_back(node->identity);
+    new_request.args.push_back(node->identity.public_key);
     cout << "sending register: " << sock_send_msg(sock, build_request_msg(&new_request)) << endl;
 
     node->waiting_requests[new_request.sender][new_request.nonce] = new_request;
@@ -193,7 +194,7 @@ bool node_handle_register(node_t *node, request_t request)
     new_request.sender = request.sender;
     new_request.nonce = request.nonce;
     new_request.command = "reply";
-    new_request.args.push_back(node->identity);
+    new_request.args.push_back(node->identity.public_key);
 
     return node_send_request(node, new_request);
 }
@@ -217,7 +218,7 @@ bool node_handle_discover(node_t *node, request_t request)
     reply.command = "reply";
     cout << "do I know them?" << endl;
     // we know them directly
-    if (node->identity == request.args.at(0) || node->peers.find(request.args.at(0)) != node->peers.end() || node->routes.find(request.args.at(0)) != node->routes.end())
+    if (node->identity.public_key == request.args.at(0) || node->peers.find(request.args.at(0)) != node->peers.end() || node->routes.find(request.args.at(0)) != node->routes.end())
     {
         cout << "I already know a route" << endl;
         reply.args.push_back("success");
@@ -317,15 +318,23 @@ bool node_handle_discover_reply(node_t *node, request_t request, request_t reply
 bool node_handle_send_msg(node_t *node, request_t request)
 {
     cout << "handling send" << endl;
-    if (request.args.size() != 3)
+    if (request.args.size() != 4)
         return false;
 
     cout << "can I send to self?" << endl;
-    if (request.args.at(0) == node->identity)
+    if (request.args.at(0) == node->identity.public_key)
     {
         if (node->recv_cb)
         {
-            node->recv_cb(request.args.at(1), request.args.at(2));
+            keypair_t from;
+            keypair_load(&from, request.args.at(1), "");
+            ciphertext_t ciphertext;
+            ciphertext.nonce = request.args.at(2);
+            ciphertext.body = request.args.at(3);
+            plaintext_t plaintext = keypair_decrypt(&from, &(node->identity), ciphertext);
+            if (plaintext.body == "")
+                return true;
+            node->recv_cb(request.args.at(1), plaintext.body);
         }
         return true;
     }
@@ -336,6 +345,7 @@ bool node_handle_send_msg(node_t *node, request_t request)
     new_request.args.push_back(request.args.at(0));
     new_request.args.push_back(request.args.at(1));
     new_request.args.push_back(request.args.at(2));
+    new_request.args.push_back(request.args.at(3));
 
     cout << "can I send to peer?" << endl;
     if (node->peers.find(request.args.at(0)) != node->peers.end())
@@ -405,14 +415,14 @@ bool node_handle_stop(node_t *node, request_t request)
     return true;
 }
 
-void node_start(node_t *node, string identity, void (*recv_cb)(string, string), void (*interface_cb)(string, bool))
+void node_start(node_t *node, string public_key, string secret_key, void (*recv_cb)(string, string), void (*interface_cb)(string, bool))
 {
     socket_t control_receiver;
     sock_pair(&control_receiver, &(node->control_sock));
     node->interfaces.push_back(control_receiver);
     node->recv_cb = recv_cb;
     node->interface_cb = interface_cb;
-    node->identity = identity;
+    keypair_load(&(node->identity), public_key, secret_key);
     node->handlers["set_identity"] = &node_handle_set_identity;
     node->handlers["add_interface"] = &node_handle_add_interface;
     node->handlers["remove_interface"] = &node_handle_remove_interface;
@@ -476,12 +486,13 @@ void node_send(node_t *node, message_t message)
     sock_send_msg(&node->control_sock, message);
 }
 
-void node_set_identity(node_t *node, string identity)
+void node_set_identity(node_t *node, string public_key, string secret_key)
 {
     request_t request;
     request.nonce = node->current_nonce++;
     request.command = "set_identity";
-    request.args.push_back(identity);
+    request.args.push_back(public_key);
+    request.args.push_back(secret_key);
     node_send(node, build_request_msg(&request));
 }
 
@@ -524,11 +535,17 @@ void node_discover(node_t *node, string identity)
 void node_send_msg(node_t *node, string identity, string message)
 {
     request_t request;
+    keypair_t to;
+    keypair_load(&to, identity, "");
+    ciphertext_t ciphertext = keypair_encrypt(&(node->identity), &to, message);
+    if (ciphertext.body == "")
+        return;
     request.nonce = node->current_nonce++;
     request.command = "send_msg";
     request.args.push_back(identity);
-    request.args.push_back(node->identity);
-    request.args.push_back(message);
+    request.args.push_back(node->identity.public_key);
+    request.args.push_back(ciphertext.nonce);
+    request.args.push_back(ciphertext.body);
     node_send(node, build_request_msg(&request));
 }
 
