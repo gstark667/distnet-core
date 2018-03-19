@@ -2,23 +2,23 @@ cmake_minimum_required(VERSION 3.9)
 
 project(distnet_core)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTOUIC ON)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -lsodium")
 
-find_package (Threads)
+find_package(Threads)
 
 include_directories(include/)
 
 set(HEADERS
     include/socket.h
     include/node.h
+    include/keypair.h
 )
 
 set(SOURCES
     src/main.cpp
     src/socket.cpp
     src/node.cpp
+    src/keypair.cpp
 )
 
 #TODO make it a library

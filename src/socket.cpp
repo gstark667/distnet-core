@@ -296,6 +296,8 @@ message_t sock_recv_tcp(socket_t *sock)
 
         return message;
     }
+    message_t message;
+    return message;
 }
 
 message_t sock_recv_udp(socket_t *sock)

@@ -25,12 +25,16 @@ void interface_callback(std::string uri, bool add)
 
 extern "C"
 JNIEXPORT void
-JNICALL  Java_com_distnet_gstark31897_distnet_NodeService_nodeStart(JNIEnv *env, jobject obj, jint node_id, jstring identity) {
-    const char *str = env->GetStringUTFChars(identity, 0);
-    std::string str_identity(str);
-    env->ReleaseStringUTFChars(identity, str);
+JNICALL  Java_com_distnet_gstark31897_distnet_NodeService_nodeStart(JNIEnv *env, jobject obj, jint node_id, jstring jpublic_key, jstring jsecret_key) {
+    const char *public_str = env->GetStringUTFChars(jpublic_key, 0);
+    std::string str_public(public_str);
+    env->ReleaseStringUTFChars(jpublic_key, public_str);
 
-    node_start(&nodes[node_id], str_identity, &message_callback, &interface_callback);
+    const char *secret_str = env->GetStringUTFChars(jsecret_key, 0);
+    std::string str_secret(secret_str);
+    env->ReleaseStringUTFChars(jsecret_key, secret_str);
+
+    node_start(&nodes[node_id], str_public, str_secret, &message_callback, &interface_callback);
 }
 
 extern "C"
@@ -43,12 +47,16 @@ JNICALL  Java_com_distnet_gstark31897_distnet_NodeService_nodeRun(JNIEnv *env, j
 
 extern "C"
 JNIEXPORT void
-JNICALL  Java_com_distnet_gstark31897_distnet_NodeService_nodeSetIdentity(JNIEnv *env, jobject obj, jint node_id, jstring identity) {
-    const char *str = env->GetStringUTFChars(identity, 0);
-    std::string str_identity(str);
-    env->ReleaseStringUTFChars(identity, str);
+JNICALL  Java_com_distnet_gstark31897_distnet_NodeService_nodeSetIdentity(JNIEnv *env, jobject obj, jint node_id, jstring jpublic_key, jstring jsecret_key) {
+    const char *public_str = env->GetStringUTFChars(jpublic_key, 0);
+    std::string str_public(public_str);
+    env->ReleaseStringUTFChars(jpublic_key, public_str);
 
-    node_set_identity(&nodes[node_id], str_identity);
+    const char *secret_str = env->GetStringUTFChars(jsecret_key, 0);
+    std::string str_secret(secret_str);
+    env->ReleaseStringUTFChars(jsecret_key, secret_str);
+
+    node_set_identity(&nodes[node_id], str_public, str_secret);
 }
 
 extern "C"
@@ -111,3 +119,13 @@ JNIEXPORT void
 JNICALL  Java_com_distnet_gstark31897_distnet_NodeService_nodeStop(JNIEnv *env, jobject obj, jint node_id) {
     node_stop(&nodes[node_id]);
 }
+
+extern "C"
+JNIEXPORT jstring
+JNICALL  Java_com_distnet_gstark31897_distnet_NodeService_generateKeypair(JNIEnv *env, jobject obj) {
+    keypair_t keypair;
+    keypair_create(&keypair);
+    std::string keystr = keypair.public_key + ":" + keypair.secret_key;
+    return env->NewStringUTF(keystr.c_str());
+}
+
